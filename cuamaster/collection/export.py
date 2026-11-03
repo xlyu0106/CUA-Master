@@ -472,12 +472,14 @@ def _canonical_gui_action(
         return [{"type": action, "args": args}]
     if lowered == "scroll":
         x, y = _point(raw, dimensions)
-        args: dict[str, Any] = {
-            "dx": _number(raw.get("dx", raw.get("scroll_x"))),
-            "dy": _number(raw.get("dy", raw.get("scroll_y"))),
-            "x": x,
-            "y": y,
-        }
+        # Canonical dx/dy are the pyautogui delta that was actually executed
+        # (positive dy scrolls up). MCP tool input uses OpenAI-style
+        # scroll_x/scroll_y, which the guest actuator negates before execution,
+        # so apply the same negation when recording. Logs that already carry
+        # canonical dx/dy are passed through unchanged.
+        dx = _number(raw["dx"]) if "dx" in raw else -_number(raw.get("scroll_x"))
+        dy = _number(raw["dy"]) if "dy" in raw else -_number(raw.get("scroll_y"))
+        args: dict[str, Any] = {"dx": dx, "dy": dy, "x": x, "y": y}
         return [{"type": "computer.scroll", "args": args}] if args["dx"] or args["dy"] else []
     if lowered == "drag":
         path = raw.get("path") if isinstance(raw.get("path"), list) else []

@@ -215,9 +215,16 @@ def action_to_python(action: dict) -> str:
         y = _i(action.get("y"))
         sx = _i(action.get("scroll_x"))
         sy = _i(action.get("scroll_y"))
-        # pyautogui scroll: positive=up. OpenAI sends positive sy=down.
-        amt = -sy if sy != 0 else (-sx if sx != 0 else 0)
-        return f"pyautogui.moveTo({x}, {y}); pyautogui.scroll({amt})"
+        # pyautogui scroll/hscroll: positive=up/right. OpenAI sends positive
+        # sy=down (and sx mirrored), so each axis is negated. Every non-zero
+        # axis is executed on its own axis: horizontal scrolls used to be issued
+        # as vertical, and were dropped when a vertical delta was also present.
+        commands = [f"pyautogui.moveTo({x}, {y})"]
+        if sx != 0:
+            commands.append(f"pyautogui.hscroll({-sx})")
+        if sy != 0:
+            commands.append(f"pyautogui.scroll({-sy})")
+        return "; ".join(commands)
 
     if t == "drag":
         path = action.get("path") if isinstance(action.get("path"), list) else []

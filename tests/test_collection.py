@@ -83,6 +83,49 @@ def test_collection_preserves_qwen_gui_primitives_as_canonical_actions():
     assert _canonical_gui_action({"type": "unsupported_gui_primitive"}, None) == []
 
 
+def test_canonical_scroll_records_the_delta_the_guest_actuator_executes():
+    from cuamaster.action_space import CUAAction
+    from cuamaster.runtime.core import _gui_command
+
+    canonical = _canonical_gui_action(
+        {"type": "scroll", "x": 100, "y": 200, "scroll_x": 0, "scroll_y": 3},
+        (1000, 1000),
+    )
+
+    assert canonical == [
+        {"type": "computer.scroll", "args": {"dx": 0.0, "dy": -3.0, "x": 100, "y": 200}}
+    ]
+    # Replaying the recorded action must reproduce the negated delta the guest
+    # actuator executed instead of scrolling the opposite way.
+    assert _gui_command(CUAAction.from_dict(canonical[0]), 1000, 1000).endswith(
+        "pyautogui.scroll(-3.0)"
+    )
+
+
+def test_canonical_scroll_passes_through_canonical_deltas():
+    assert _canonical_gui_action(
+        {"type": "scroll", "dx": 2, "dy": -4, "x": 0, "y": 0}, None
+    ) == [
+        {"type": "computer.scroll", "args": {"dx": 2.0, "dy": -4.0, "x": 0, "y": 0}}
+    ]
+
+
+def test_guest_actuator_scrolls_each_axis_on_its_own_axis():
+    from cuamaster.collection.assets.weavebench_computer_mcp.server import action_to_python
+
+    horizontal = action_to_python(
+        {"type": "scroll", "x": 10, "y": 20, "scroll_x": 4, "scroll_y": 0}
+    )
+    assert "pyautogui.hscroll(-4)" in horizontal
+    assert "pyautogui.scroll(" not in horizontal
+
+    both = action_to_python(
+        {"type": "scroll", "x": 10, "y": 20, "scroll_x": 4, "scroll_y": 3}
+    )
+    assert "pyautogui.hscroll(-4)" in both
+    assert "pyautogui.scroll(-3)" in both
+
+
 def test_chat_parser_ignores_all_non_gui_cli_tools(tmp_path):
     _write_jsonl(tmp_path / "chat.jsonl", [
         {"message": {"role": "assistant", "content": [{

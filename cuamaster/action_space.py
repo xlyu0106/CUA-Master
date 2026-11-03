@@ -163,6 +163,8 @@ def _xy(params: tuple[Any, ...], kwargs: dict[str, Any]) -> tuple[Any, Any]:
 def _require_number(value: Any, name: str, *, positive: bool = False, allow_negative: bool = False) -> None:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         raise TypeError(f"{name} must be a number")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError(f"{name} must be a finite number")
     if positive and value <= 0:
         raise ValueError(f"{name} must be > 0")
     if not allow_negative and value < 0:

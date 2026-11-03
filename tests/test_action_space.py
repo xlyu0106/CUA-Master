@@ -119,6 +119,18 @@ def test_coordinate_validation_uses_normalized_range() -> None:
         validate_action({"type": "computer.click", "args": {"x": 1001, "y": 1}})
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_coordinates_reject_non_finite_values(value: float) -> None:
+    with pytest.raises(ValueError):
+        validate_action({"type": "computer.click", "args": {"x": value, "y": 0}})
+    with pytest.raises(ValueError):
+        validate_action(
+            {"type": "computer.drag", "args": {"x1": 0, "y1": 0, "x2": value, "y2": 0}}
+        )
+    with pytest.raises(ValueError):
+        validate_action({"type": "computer.wait", "args": {"seconds": value}})
+
+
 def test_validation_rejects_unknown_args() -> None:
     with pytest.raises(ValueError):
         validate_action({"type": "computer.type", "args": {"text": "hello", "delay": 1}})
